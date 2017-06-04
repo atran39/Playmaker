@@ -1,52 +1,47 @@
 <html>
-<head>
-<script type="text/javascript" src="http://code.jquery.com/jquery-1.11.1.js"></script>
-<script type="text/javascript" src="app.js"></script>
+	<head>
+		<!-- jquery -->
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 
-<!-- Latest compiled and minified CSS -->
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+		<!-- Latest compiled and minified CSS -->
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
 
-<!-- Latest compiled and minified JavaScript -->
-<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+		<!-- Optional theme -->
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
 
-</style>
-</head>
-<body onload="startApp()">
+		<!-- Latest compiled and minified JavaScript -->
+		<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
 
-	<!-- Main jumbotron for a primary marketing message or call to action -->
-	<div class="jumbotron">
+		<script type="text/javascript" src="app.js"></script>
+	</head>
+
+	<script>
+		function login() {
+			var client_id = '4d78f4f5135944c9b2f05bcabff6b557';
+			var response_type = 'token';
+			var redirect_uri = 'http://localhost/callback.html';
+			var url = 'https://accounts.spotify.com/authorize?client_id=' + client_id
+				+ '&redirect_uri=' + encodeURIComponent(redirect_uri) + '&response_type=' + response_type;
+			console.log("login");
+			var w = window.open(url, '_self');
+		}
+	</script>
+	<body>
+		<div class="jumbotron">
+			<div class="container">
+				<h1>Spotify Playlist Maker</h1>
+				<p>
+					Turn your favorite list of songs into a playlist!
+				</p>
+			</div>
+		</div>
+
 		<div class="container">
-			<h2>Spotify Playlist Maker</h2>
-			<p>
-				Turn your favorite list of songs into a playlist!
-			</p>
-		</div>
-	</div>
-
-	<div class="container">
-		<!-- Example row of columns -->
-		<div class="row">
-			<div class="col-md-6">
-				<div class="form-group">
-				  <label for="plName">Playlist Name:</label>
-				  <input type="text" class="form-control" value="Playlist Name" id="plName">
-				</div>
-				<div class="form-group">
-					<label for="playlist">Songs, Artists</label>
-					<textarea class="form-control" id="alltext" rows="10" placeholder="Closer, The Chainsmokers"></textarea>
-				</div>
-				<p>
-					<button class="btn btn-lg btn-primary" id="create">Create a Spotify playlist!</button>
-				</p>
-				<p>
-					<button class="btn btn-lg btn-primary btn-success" id="upload">Upload to Spotify</button>
-				</p>
-			</div>
-			<div class="col-md-6">
-				<h2>Spotify Playlist</h2>
-				<div id="tracks"></div>
+			<!-- Example row of columns -->
+			<div class="row text-center">
+				<h3>Login to start Playmaker!</h3>
+				<button class="btn btn-lg btn-primary btn-success" onclick="login();">Login to Spotify</button>
 			</div>
 		</div>
-	</div>
-</body>
+	</body>
 </html>
