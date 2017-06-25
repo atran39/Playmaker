@@ -1,11 +1,22 @@
 (function(exports) {
 
-	var g_name = '';
-	var g_tracks = [];
+	var pl_tracks = [];
 	var track_urls = [];
 
 	var client_id = '4d78f4f5135944c9b2f05bcabff6b557';
 	var redirect_uri = 'http://localhost/callback.html';
+
+	var getAccessToken = function() {
+		return location.hash.match(/^\#access_token=(.+)&token_type=(.+)&expires_in=(\d+)$/)[1];
+	}
+
+	var toggleButton = function(id) {
+		if ($('#'+id).disabled == true) {
+			$('#'+id).disabled = false;
+		} else {
+			$('#'+id).disabled = true;
+		}
+	}
 
 	var splitText = function(inputtext) {
 		var words = inputtext
@@ -19,9 +30,9 @@
 	var addToQueue = function() {
 		var new_urls = [];
 
-		g_name = $('#plName').val().trim();
-		if (g_name.trim() == "") {
-			g_name = new Date($.now())
+		pl_name = $('#plName').val().trim();
+		if (pl_name.trim() == "") {
+			pl_name = new Date($.now())
 		}
 
 		var words = splitText($('#alltext').val()); // words is song, artist combination
@@ -54,29 +65,21 @@
 			}
 
 			new_urls.push(url);
-		});.
+		});
 
 		return track_urls = new_urls;
 	}
 
-	var search = function () {
-		var txt = '';
-		var new_tracks = [];
-
-		var accessToken = location.hash.match(/^\#access_token=(.+)&token_type=(.+)&expires_in=(\d+)$/)[1];
-
-		track_urls.forEach(function(url) {
-			//while (track_uris.length != 0) {
-
-			//url = track_uris[0];
+	var createPl = function (access_token,track_html) {
+		if (track_urls.length > 0) {
+			url = track_urls[0];
 
 			$.ajax({
 				url: url,
 				dataType: 'json',
-				headers : {
-					'Authorization': 'Bearer ' + accessToken
+				headers: {
+					'Authorization': 'Bearer ' + access_token
 				},
-				async: false,
 				success: function(r) {
 					// console.log('got track', r);
 					// track_uris.shift();
@@ -84,12 +87,12 @@
 						console.log('fail to get track info', r)
 						// not found on spotify
 						name = url.replace(/^https:\/\/api\.spotify\.com\/v1\/search\?q=/, '').replace(/&type=track&limit=1$/,'');
-						txt += '<div class="media">No match found for "' + decodeURIComponent(name)+ '"</div>\n';
+						track_html += '<div class="media bg-danger">No match found for "' + decodeURIComponent(name)+ '"</div>\n';
+						track_urls.shift();
 					} else {
 						// console.log('found track', r);
 						// console.log(r.tracks.items[0].uri);
-						new_tracks.push(r.tracks.items[0].uri);
-						txt += '<div class="media">' +
+						track_html += '<div class="media">' +
 						'<a class="pull-left" href="#"><img class="media-object" src="' + r.tracks.items[0].album.images[r.tracks.items[0].album.images.length - 1].url + '" /></a>' +
 						'<div class="media-body">' +
 						'<h4 class="media-heading"><a href="' + r.tracks.items[0].uri + '">' + r.tracks.items[0].name + '</a></h4>' +
@@ -97,58 +100,127 @@
 						'</a><br/>Artist: <a href="' + r.tracks.items[0].artists[0].uri + '">' + r.tracks.items[0].artists[0].name+'</a>' +
 						'</div>' +
 						'</div>\n';
-						$('#tracks').html(txt);
+						pl_tracks.push(r.tracks.items[0].uri);
+						track_urls.shift();
 					}
+					$('#tracks').html(track_html);
+					createPl(access_token,track_html);
 				},
 				error: function(jqXHR,textStatus,errorThrown) {
 					// timeout
 					console.log('errorThrown:',errorThrown);
 					if (errorThrown == 'Unauthorized') {
-						window.location.replace('http://localhost/callback.html');
+						window.location.replace('http://localhost/index.html');
 					} else if (errorThrown == 'Too Many Requests') {
 						// time delay
 						console.log('too');
 					}
 				}
 			});
-
-			//}
-		});
-
-		return new_tracks;
-	}
-	var createPl = function () {
-
-		addToQueue();
-		var g_tracks = search();
-
-		console.log('done searching');
-		g_tracks.forEach(function(it) {
-			console.log(it);
-		});
-		console.log('done');
-
-		// need to wait for ajax requests to finish before processing
+		} else {
+			// reenable button
+			$('#create').prop('disabled',false);
+			//console.log('able');
+			console.log('Creation finished');
+		}
 	}
 
+	var uploadPlaylist = function(access_token,pl_name) {
+		var username = null;
+		var pl_id = null;
 
-	var doLogin = function(callback) {
-		var url = 'https://accounts.spotify.com/authorize?client_id=' + client_id +
-		'&response_type=token' +
-		'&scope=playlist-read-private%20playlist-modify%20playlist-modify-private' +
-		'&redirect_uri=' + encodeURIComponent(redirect_uri);
-		localStorage.setItem('createplaylist-tracks', JSON.stringify(g_tracks));
-		localStorage.setItem('createplaylist-name', g_name);
-		var w = window.open(url, 'asdf', 'WIDTH=400,HEIGHT=500');
+		console.log('get username');
+		$.ajax({
+			url: 'https://api.spotify.com/v1/me',
+			dataType: 'json',
+			headers: {
+				'Authorization': 'Bearer ' + access_token
+			},
+			success: function(r) {
+				username = r.id;
+				console.log('create playlist');
+				var url = 'https://api.spotify.com/v1/users/' + encodeURIComponent(username) + '/playlists';
+				console.log(url);
+				$.ajax(url, {
+					method: 'POST',
+					data: JSON.stringify({
+						'name': pl_name,
+						'public': false
+					}),
+					dataType: 'json',
+					headers: {
+						'Authorization': 'Bearer ' + access_token,
+						'Content-Type': 'application/json'
+					},
+					success: function(r) {
+						console.log('create playlist response', r);
+						pl_id = r.id;
+						addTrack(username,pl_id,access_token);
+					},
+					error: function(r) {
+						console.log(r);
+						window.location.replace('http://localhost/index.html');
+					}
+				});
+			},
+			error: function(r) {
+				// timeout
+				console.log(r);
+				window.location.replace('http://localhost/index.html');
+			}
+		});
+		console.log('username: ',username);
+	}
+
+	var addTrack = function(user_id,playlist_id,access_token) {
+		var curr_index = 0;
+		var url = 'https://api.spotify.com/v1/users/' + user_id +
+		'/playlists/' + playlist_id +
+		'/tracks'
+		do {
+			var data = '"uris": ' + 'position' + curr_index
+			$.ajax({
+				url: url,
+				method: 'POST',
+				data: JSON.stringify({
+					'uris': pl_tracks.slice(curr_index,curr_index+100),
+					'position': curr_index
+				}), //JSON.stringify(tracks),
+				dataType: 'text',
+				headers: {
+					'Authorization': 'Bearer ' + access_token,
+					'Content-Type': 'application/json'
+				},
+				success: function(r) {
+					console.log('add track response', r);
+				},
+				error: function(r) {
+					console.log(r);
+					//window.location.replace('http://localhost/index.html');
+				}
+			});
+			curr_index += 100;
+
+		} while ((pl_tracks.length - curr_index) > 0);
+		console.log('done adding tracks');
 	}
 
 	exports.startApp = function() {
 		console.log('start app.');
+		var access_token = getAccessToken();
+
 		$('#create').click(function() {
-			createPl();
+			console.log('disable');
+			$('#create').prop('disabled',true);
+			var track_html = '';
+			addToQueue();
+			createPl(access_token,track_html);
 		});
 		$('#upload').click(function() {
-			doLogin(function() {});
+			// doLogin();
+			console.log('upload');
+			var pl_name = $('#plName').val().trim();
+			uploadPlaylist(access_token,pl_name);
 		});
 
 	}
