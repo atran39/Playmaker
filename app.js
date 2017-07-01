@@ -2,30 +2,20 @@
 
 	var pl_tracks = [];
 	var track_urls = [];
+	var pl_length = -1;
 
 	var client_id = '4d78f4f5135944c9b2f05bcabff6b557';
-	var redirect_uri = 'http://localhost/callback.html';
+	var redirect_uri = null
+	if (window.location.hostname == 'localhost') {
+		redirect_uri = 'http://localhost/index.html';
+	} else {
+		redirect_uri = 'https://atran39.github.io/index.html'
+	}
 
 	var getAccessToken = function() {
 		return location.hash.match(/^\#access_token=(.+)&token_type=(.+)&expires_in=(\d+)$/)[1];
 	}
 
-	var toggleButton = function(id) {
-		if ($('#'+id).disabled == true) {
-			$('#'+id).disabled = false;
-		} else {
-			$('#'+id).disabled = true;
-		}
-	}
-
-	var splitText = function(inputtext) {
-		var words = inputtext
-		.split(/[\n\r]/)
-		// .map(function(w) { return w.replace(/^\d+ /,'').replace(/[\d,]+$/,'')}) // rm rank, count
-		.map(function(w) { return w.trim().replace(/^[.,-]+/,'').replace(/[.,-]+$/g,''); })
-		.filter(function(w) { return (w.length > 0); });
-		return words;
-	}
 
 	var addToQueue = function() {
 		var new_urls = [];
@@ -35,44 +25,54 @@
 			pl_name = new Date($.now())
 		}
 
-		var words = splitText($('#alltext').val()); // words is song, artist combination
+		var words = $('#alltext').val()
+		.split(/[\n\r]/)
+		// .map(function(w) { return w.trim().replace(/^[.,-]+/,'').replace(/[.,-]+$/g,''); })
+		.filter(function(w) { return (w.length > 0); });
 
 		words.forEach(function(curr) {
 			var url = '';
 
 			if (curr.match(/\t/)) {
 				curr = curr.split(/[\t]/);
-			} else {
-				curr = curr.split(/,/);
-			}
-			// console.log(curr);
-			if (curr.length == 3) {
-				// 538 playlist
-				// console.log("error on", curr);
-				if (curr[0].match(/^\d$/)) {
-					// Wedding playlist
-					url = 'https://api.spotify.com/v1/search?q='
-					+ encodeURIComponent(curr[1]) + '&type=track&limit=1';
-				} else {
-					// Workout playlist
-					url = 'https://api.spotify.com/v1/search?q='
-					+ encodeURIComponent(curr[0] + ' ' + curr[1]) + '&type=track&limit=1';
+
+				if (curr.length >= 3) {
+					// 538 playlist
+					if (curr[2].match(/^\d\d?$/)) {
+						// Wedding playlist
+						url = 'https://api.spotify.com/v1/search?q='
+						+ encodeURIComponent(curr[1]) + '&type=track&limit=1';
+					} else {
+						// Workout playlist
+						url = 'https://api.spotify.com/v1/search?q='
+						+ encodeURIComponent(curr[0] + ' ' + curr[1]) + '&type=track&limit=1';
+					}
 				}
 			} else {
 				// CSV
 				url = 'https://api.spotify.com/v1/search?q='
-				+ encodeURIComponent(curr[0] + ' ' + curr[1]) + '&type=track&limit=1';
+				+ encodeURIComponent(curr) + '&type=track&limit=1';
 			}
+			// console.log(curr);
 
 			new_urls.push(url);
 		});
 
+		pl_length = new_urls.length;
 		return track_urls = new_urls;
 	}
 
 	var createPl = function (access_token,track_html) {
 		if (track_urls.length > 0) {
 			url = track_urls[0];
+
+			var valuenow = (pl_length - track_urls.length)/pl_length*100;
+			$('#progress').html(
+				'<div class="progress progress-striped active">' +
+				'<div class="progress-bar" role="progressbar" aria-valuenow=\"' + valuenow + '\" aria-valuemin="0" aria-valuemax="100" style="width:' + valuenow + '%">' +
+			 	'</div>' +
+				'</div>'
+			);
 
 			$.ajax({
 				url: url,
@@ -109,18 +109,19 @@
 				error: function(jqXHR,textStatus,errorThrown) {
 					// timeout
 					console.log('errorThrown:',errorThrown);
-					if (errorThrown == 'Unauthorized') {
-						window.location.replace('http://localhost/index.html');
-					} else if (errorThrown == 'Too Many Requests') {
-						// time delay
-						console.log('too');
-					}
+					window.location.replace(redirect_uri);
 				}
 			});
 		} else {
-			// reenable button
-			$('#create').prop('disabled',false);
 			//console.log('able');
+			$('#progress').html('');
+			$('#upload').prop('disabled',false);
+			$('#create').prop('disabled',false);
+
+			document.getElementById('upload').textContent = ('Upload to Spotify');
+			$('#upload').off('click');
+			$('#upload').click(uploadClick);
+
 			console.log('Creation finished');
 		}
 	}
@@ -129,7 +130,8 @@
 		var username = null;
 		var pl_id = null;
 
-		console.log('get username');
+		$('#upload').prop('disabled',true);
+
 		$.ajax({
 			url: 'https://api.spotify.com/v1/me',
 			dataType: 'json',
@@ -138,9 +140,9 @@
 			},
 			success: function(r) {
 				username = r.id;
-				console.log('create playlist');
+				// console.log('create playlist');
 				var url = 'https://api.spotify.com/v1/users/' + encodeURIComponent(username) + '/playlists';
-				console.log(url);
+				// console.log(url);
 				$.ajax(url, {
 					method: 'POST',
 					data: JSON.stringify({
@@ -155,24 +157,25 @@
 					success: function(r) {
 						console.log('create playlist response', r);
 						pl_id = r.id;
-						addTrack(username,pl_id,access_token);
+						pl_url = r.external_urls.spotify;
+						console.log(pl_url);
+						addTrack(username,pl_id,access_token,pl_url);
 					},
 					error: function(r) {
 						console.log(r);
-						window.location.replace('http://localhost/index.html');
+						window.location.replace(redirect_uri);
 					}
 				});
 			},
 			error: function(r) {
 				// timeout
 				console.log(r);
-				window.location.replace('http://localhost/index.html');
+				window.location.replace(redirect_uri);
 			}
 		});
-		console.log('username: ',username);
 	}
 
-	var addTrack = function(user_id,playlist_id,access_token) {
+	var addTrack = function(user_id,playlist_id,access_token,playlist_url) {
 		var curr_index = 0;
 		var url = 'https://api.spotify.com/v1/users/' + user_id +
 		'/playlists/' + playlist_id +
@@ -192,37 +195,53 @@
 					'Content-Type': 'application/json'
 				},
 				success: function(r) {
-					console.log('add track response', r);
+					console.log('added tracks response', r);
+				 	document.getElementById('upload').textContent = ('Done! View on Spotify');
+					$('#upload').off('click');
+					$('#upload').click(function () {window.open(playlist_url)});
+						//'href', 'spotify:user:'+user_id+':playlist:'+playlist_id);
+					$('#upload').prop('disabled',false);
 				},
 				error: function(r) {
 					console.log(r);
-					//window.location.replace('http://localhost/index.html');
+					alert('Error! Please create a playlist before uploading')
+					// window.location.replace(redirect_uri);
 				}
 			});
 			curr_index += 100;
-
 		} while ((pl_tracks.length - curr_index) > 0);
 		console.log('done adding tracks');
 	}
 
-	exports.startApp = function() {
-		console.log('start app.');
+	var createClick = function() {
 		var access_token = getAccessToken();
-
-		$('#create').click(function() {
-			console.log('disable');
-			$('#create').prop('disabled',true);
-			var track_html = '';
-			addToQueue();
-			createPl(access_token,track_html);
-		});
-		$('#upload').click(function() {
-			// doLogin();
-			console.log('upload');
-			var pl_name = $('#plName').val().trim();
-			uploadPlaylist(access_token,pl_name);
-		});
-
+		pl_tracks = [];
+		
+		$('#progress').html(
+			'<div class="progress progress-striped active">' +
+			'<div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 100%">' +
+			'</div>' +
+			'</div>'
+		);
+		$('#create').prop('disabled',true);
+		addToQueue();
+		console.log(track_urls);
+		createPl(access_token,'');
 	}
 
+	var uploadClick = function() {
+		console.log('upload');
+		var pl_name = $('#plName').val().trim();
+		var access_token = getAccessToken();
+		uploadPlaylist(access_token,pl_name);
+	}
+
+	exports.startApp = function() {
+		console.log('start app.');
+
+		$('#upload').prop('disabled',true);
+
+		$('#create').click(createClick);
+		$('#upload').click(uploadClick);
+	}
 })(window);
