@@ -4,7 +4,7 @@
 	var track_urls = [];
 	var pl_length = -1;
 
-	var client_id = '4d78f4f5135944c9b2f05bcabff6b557'; // pls dont steal
+	var client_id = ''; // kept private
 	var redirect_uri = null
 	if (window.location.hostname == 'localhost') {
 		redirect_uri = 'http://localhost/index.html';
